@@ -2,7 +2,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { ChatClient, ChatError } from "../src/chatClient.js";
-import type { MessageInfo } from "../src/generatedTypes.js";
+import type { MessageInfo } from "../src/models.js";
 import {
   SHORT_TEST_TIMEOUT,
   LONG_TEST_TIMEOUT,

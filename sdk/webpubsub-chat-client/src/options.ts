@@ -21,6 +21,30 @@ export interface OperationOptions {
 /** Options for `ChatClient.start()`. */
 export interface StartOptions extends OperationOptions {}
 
+/** Options for `ChatClient.getCurrentUserProperties()`. */
+export interface GetCurrentUserPropertiesOptions extends OperationOptions {}
+
+/** Options for `ChatClient.setCurrentUserProperties()`. */
+export interface SetCurrentUserPropertiesOptions extends OperationOptions {}
+
+/** Options for `ChatClient.getUserProperties()`. */
+export interface GetUserPropertiesOptions extends OperationOptions {}
+
+/** Options for `ChatClient.getCurrentUserStatus()`. */
+export interface GetCurrentUserStatusOptions extends OperationOptions {}
+
+/** Options for `ChatClient.setCurrentUserStatus()`. */
+export interface SetCurrentUserStatusOptions extends OperationOptions {}
+
+/** Options for `ChatClient.getUserStatus()`. */
+export interface GetUserStatusOptions extends OperationOptions {}
+
+/** Options for `ChatClient.subscribeUserStatus()`. */
+export interface SubscribeUserStatusOptions extends OperationOptions {}
+
+/** Options for `ChatClient.unsubscribeUserStatus()`. */
+export interface UnsubscribeUserStatusOptions extends OperationOptions {}
+
 /** Options for `ChatClient.getRoomDetail()`. */
 export interface GetRoomDetailOptions extends OperationOptions {
   /**
@@ -29,6 +53,12 @@ export interface GetRoomDetailOptions extends OperationOptions {
    */
   withMembers?: boolean;
 }
+
+/** Options for `ChatClient.getRoomMembers()`. */
+export interface GetRoomMembersOptions extends OperationOptions {}
+
+/** Options for `ChatClient.leaveRoom()`. */
+export interface LeaveRoomOptions extends OperationOptions {}
 
 /** Options for `ChatClient.createRoom()`. */
 export interface CreateRoomOptions extends OperationOptions {
@@ -40,6 +70,12 @@ export interface CreateRoomOptions extends OperationOptions {
   roomId?: string;
 }
 
+/** Options for `ChatClient.createConversation()`. */
+export interface CreateConversationOptions extends OperationOptions {
+  /** Optional conversation title, at most 256 characters. */
+  title?: string | null;
+}
+
 /** Options for `ChatClient.sendToRoom()`. */
 export interface SendToRoomOptions extends OperationOptions {
   /** Mentioned user ids. Individual ids must be strings. */
@@ -47,6 +83,18 @@ export interface SendToRoomOptions extends OperationOptions {
   /** Id of the message being replied to. */
   replyTo?: string | null;
 }
+
+/** Options for `ChatClient.sendMessage()`. */
+export interface SendMessageOptions extends SendToRoomOptions {
+  /** Message metadata: at most 16 entries, keys at most 32 characters and values at most 64. */
+  metadata?: Record<string, string> | null;
+}
+
+/** Options for `ChatClient.dereference()`. */
+export interface DereferenceOptions extends OperationOptions {}
+
+/** Options for `ChatClient.editMessage()`. */
+export interface EditMessageOptions extends OperationOptions {}
 
 /** Options for `ChatClient.addUserToRoom()`. */
 export interface AddUserToRoomOptions extends OperationOptions {}

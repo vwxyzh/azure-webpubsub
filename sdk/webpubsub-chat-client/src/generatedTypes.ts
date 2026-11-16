@@ -7,63 +7,110 @@ export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        EmptyObject: Record<string, never>;
+        JsonObject: {
+            [key: string]: unknown;
+        };
+        NullableJsonObject: {
+            [key: string]: unknown;
+        } | null;
         /** @enum {string} */
-        NotificationType: "MessageCreated" | "MessageUpdated" | "MessageDeleted" | "RoomJoined" | "RoomLeft" | "RoomClosed" | "RoomMemberJoined" | "RoomMemberLeft" | "AddContact";
+        NotificationType: "MessageCreated" | "MessageUpdated" | "MessageReactionUpdated" | "MessageDeleted" | "RoomJoined" | "RoomLeft" | "RoomClosed" | "RoomMemberJoined" | "RoomMemberLeft" | "AddContact" | "UserStatusUpdated";
         Notification: {
-            notificationType: components["schemas"]["NotificationType"];
-            body: components["schemas"]["NewMessageNotificationBody"] | components["schemas"]["NewRoomNotificationBody"] | components["schemas"]["UpdateMessageNotificationBody"] | components["schemas"]["AddContactNotificationBody"] | components["schemas"]["MemberJoinedNotificationBody"] | components["schemas"]["MemberLeftNotificationBody"] | components["schemas"]["RoomLeftNotificationBody"];
+            /** @enum {string} */
+            notificationType: "MessageCreated";
+            body: components["schemas"]["NewMessageNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "MessageUpdated";
+            body: components["schemas"]["UpdateMessageNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "MessageReactionUpdated";
+            body: components["schemas"]["MessageReactionUpdatedNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "RoomJoined";
+            body: components["schemas"]["NewRoomNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "RoomLeft";
+            body: components["schemas"]["RoomLeftNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "RoomMemberJoined";
+            body: components["schemas"]["MemberJoinedNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "RoomMemberLeft";
+            body: components["schemas"]["MemberLeftNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "UserStatusUpdated";
+            body: components["schemas"]["UserStatusUpdatedNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "MessageDeleted";
+            body: components["schemas"]["MessageDeletedNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "RoomClosed";
+            body: components["schemas"]["RoomClosedNotificationBody"];
+        } | {
+            /** @enum {string} */
+            notificationType: "AddContact";
+            body: components["schemas"]["AddContactNotificationBody"];
         };
         NewMessageNotificationBody: {
             conversation: components["schemas"]["ChatConversation"];
             message: components["schemas"]["MessageInfo"];
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "MessageCreated";
         };
         NewMessageNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
-            notificationType?: "NewMessage";
+            notificationType?: "MessageCreated";
+            body?: components["schemas"]["NewMessageNotificationBody"];
         };
         NewRoomNotificationBody: {
             roomId: string;
             title: string;
-            defaultConversationId?: string;
-            /** @description null for now */
-            properties?: Record<string, never> | null;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "RoomJoined";
+            defaultConversationId: string;
         };
         NewRoomNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
-            notificationType?: "NewRoom";
+            notificationType?: "RoomJoined";
             body?: components["schemas"]["NewRoomNotificationBody"];
         };
         UpdateMessageNotificationBody: {
             conversation: components["schemas"]["ChatConversation"];
             message: components["schemas"]["MessageInfo"];
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "MessageUpdated";
         };
         UpdateMessageNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
-            notificationType?: "UpdateMessage";
+            notificationType?: "MessageUpdated";
             body?: components["schemas"]["UpdateMessageNotificationBody"];
+        };
+        MessageReactionUpdatedNotificationBody: {
+            conversation: components["schemas"]["ChatConversation"];
+            messageId: string;
+            reactions: string[];
+            userId: string;
+        };
+        MessageReactionUpdatedNotification: components["schemas"]["Notification"] & {
+            /** @enum {string} */
+            notificationType?: "MessageReactionUpdated";
+            body?: components["schemas"]["MessageReactionUpdatedNotificationBody"];
+        };
+        UserStatusUpdatedNotificationBody: {
+            userId: string;
+            status: components["schemas"]["NullableJsonObject"];
+        };
+        UserStatusUpdatedNotification: components["schemas"]["Notification"] & {
+            /** @enum {string} */
+            notificationType?: "UserStatusUpdated";
+            body?: components["schemas"]["UserStatusUpdatedNotificationBody"];
         };
         AddContactNotificationBody: {
             userId: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "AddContact";
         };
         AddContactNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
@@ -74,40 +121,28 @@ export interface components {
             roomId: string;
             title: string;
             userId: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "RoomMemberJoined";
+            defaultConversationId: string;
         };
         MemberJoinedNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
-            notificationType?: "MemberJoined";
+            notificationType?: "RoomMemberJoined";
             body?: components["schemas"]["MemberJoinedNotificationBody"];
         };
         MemberLeftNotificationBody: {
             roomId: string;
             title: string;
             userId: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "RoomMemberLeft";
+            defaultConversationId: string;
         };
         MemberLeftNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
-            notificationType?: "MemberLeft";
+            notificationType?: "RoomMemberLeft";
             body?: components["schemas"]["MemberLeftNotificationBody"];
         };
         RoomLeftNotificationBody: {
             roomId: string;
             title: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "RoomLeft";
+            defaultConversationId: string;
         };
         RoomLeftNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
@@ -117,11 +152,6 @@ export interface components {
         RoomClosedNotificationBody: {
             roomId: string;
             title: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "RoomClosed";
         };
         RoomClosedNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
@@ -131,11 +161,6 @@ export interface components {
         MessageDeletedNotificationBody: {
             conversation: components["schemas"]["ChatConversation"];
             messageId: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            notificationType: "MessageDeleted";
         };
         MessageDeletedNotification: components["schemas"]["Notification"] & {
             /** @enum {string} */
@@ -156,16 +181,11 @@ export interface components {
              *       "room3"
              *     ]
              */
-            roomIds?: string[];
-            /**
-             * @description Array of conversation IDs the user is in
-             * @example [
-             *       "id1",
-             *       "id2",
-             *       "id3"
-             *     ]
-             */
+            roomIds: string[];
+            /** @description Legacy optional conversation IDs; not part of the current login contract. */
             conversationIds?: string[];
+            properties?: components["schemas"]["JsonObject"];
+            status?: components["schemas"]["JsonObject"];
         };
         ListUserConversationRequest: {
             continuationToken?: string | null;
@@ -176,9 +196,14 @@ export interface components {
             conversations: components["schemas"]["ChatConversation"][];
             continuationToken?: string | null;
         };
+        /**
+         * @description Identify a conversation by conversationId, by roomId and topicId, or
+         *     by roomId alone for the default topic. If both forms are supplied they
+         *     must agree. Responses include all three fields; conversationId has the
+         *     form c.{roomId}.{topicId}.
+         */
         ChatConversation: {
             roomId?: string | null;
-            /** @description null for now */
             topicId?: string | null;
             conversationId?: string | null;
         };
@@ -216,12 +241,71 @@ export interface components {
             roomId: string;
             title: string;
             defaultConversationId: string;
-            /** @description null for now */
-            properties?: Record<string, never> | null;
+            /** @description Room properties, omitted when not set. */
+            properties?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description User IDs, included when members are requested. */
+            members?: string[];
         };
         RoomInfoWithMembers: components["schemas"]["RoomInfo"] & {
             /** @description List of user id */
             members: string[];
+        };
+        GetRoomOptions: {
+            id: string;
+            withMembers?: boolean;
+        };
+        SingleRoom: {
+            roomId: string;
+        };
+        SingleUser: {
+            userId: string;
+        };
+        SingleConversation: {
+            conversation: components["schemas"]["ChatConversation"];
+        };
+        SingleMessage: {
+            conversation: components["schemas"]["ChatConversation"];
+            messageId: string;
+        };
+        /** @description The caller is always added to members and duplicates are removed. */
+        CreateRoomRequest: {
+            roomId?: string;
+            /** @description Optional title, at most 256 UTF-16 code units. */
+            title?: string;
+            members?: string[];
+            /**
+             * @description Initial room properties; null or omission means no properties.
+             *     The serialized JSON must fit in 64 KiB of UTF-16.
+             */
+            properties?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * @description Requires room membership and room.update_properties permission.
+         *     An omitted or null title leaves it unchanged. An omitted properties
+         *     value leaves it unchanged; null clears it. An object shallow-merges
+         *     top-level fields, including null values. Both the supplied object and
+         *     the resulting JSON must fit in 64 KiB of UTF-16.
+         */
+        UpdateRoomPropertiesRequest: {
+            roomId: string;
+            /** @description Replacement title, at most 256 UTF-16 code units; an empty string is allowed. */
+            title?: string | null;
+            properties?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        GetRoomMembersResponse: {
+            members: components["schemas"]["RoomMember"][];
+        };
+        /** @description Requires room membership and room.create_conversation permission. */
+        CreateConversationOptions: {
+            roomId: string;
+            /** @description Optional title, at most 256 characters. */
+            title?: string | null;
         };
         /** @enum {string} */
         RoomMemberJoinEnum: "AutoApprove" | "ManualApprove" | "InviteOnly";
@@ -241,78 +325,169 @@ export interface components {
             start?: string | null;
             /** @description MessageId */
             end?: string | null;
-            /** @default 100 */
-            maxCount: number | null;
+            /** @description Defaults to 100 when omitted or null. */
+            maxCount?: number | null;
+        };
+        QueryMessageHistoryResponse: {
+            messages: components["schemas"]["MessageInfo"][];
+            nextQuery: components["schemas"]["MessageRangeQuery"] | (never | null);
         };
         MessageInfo: {
             messageId: string;
             /** @description UserId */
-            createdBy?: string;
+            createdBy: string;
             /** Format: date-time */
-            createdAt?: string;
-            /** @example Join/Leave/Text/Emoji/File/Image/Voice/... */
-            bodyType?: string;
-            /** @example Inline/Reference/External/... */
-            messageBodyType: string;
-            content: {
-                text?: string | null;
-                /** Format: binary */
-                binary?: string | null;
-                items?: components["schemas"]["ContentItem"][] | null;
-            };
-            metadata?: {
-                [key: string]: string;
-            } | null;
+            createdAt: string;
+            content: components["schemas"]["MessageContent"];
+            metadata?: components["schemas"]["MessageMetadata"];
             streamId?: string | null;
             etag?: string | null;
             replyTo?: string | null;
             mentions?: string[] | null;
         };
-        ContentItem: {
-            type?: string;
-            content?: {
-                text?: string | null;
-                /** Format: binary */
-                binary?: string | null;
-            };
-            metadata?: {
-                custom?: {
-                    [key: string]: string;
-                } | null;
-            } | null;
-            isAttachment?: boolean;
+        /** @description At most 16 entries; keys are at most 32 characters and values at most 64 characters. */
+        MessageMetadata: {
+            [key: string]: string;
+        } | null;
+        /**
+         * @description For sends and edits, exactly one of text, binary, or a non-empty items
+         *     array is required. After attachments are externalized, the stored body
+         *     is limited to 65536 bytes. Each inline attachment is limited to 983025
+         *     bytes. Text sizes use UTF-8 bytes and binary sizes use decoded bytes.
+         */
+        MessageContent: {
+            text?: string | null;
+            /** Format: byte */
+            binary?: string | null;
+            items?: components["schemas"]["ContentItem"][] | null;
         };
+        ContentItem: {
+            /** @enum {string} */
+            type: "Text" | "Binary";
+            isAttachment: boolean;
+            content: components["schemas"]["MessageContentItemContentOrReference"];
+            metadata?: components["schemas"]["MessageContentItemMetadata"];
+        };
+        MessageContentItemContentOrReference: {
+            text?: string | null;
+            /** Format: byte */
+            binary?: string | null;
+            reference?: components["schemas"]["ContentItemReference"] | (never | null);
+        };
+        /** @description Opaque storage location; the containing item declares its Text or Binary type. */
+        ContentItemReference: {
+            storageType: string;
+            uri: string;
+        };
+        MessageContentItemMetadata: {
+            contentType?: string | null;
+            fileName?: string | null;
+            /** Format: int64 */
+            size?: number | null;
+            custom?: components["schemas"]["MessageMetadata"];
+        } | null;
         CreateTextMessage: {
             conversation: components["schemas"]["ChatConversation"];
-            message: string;
+            /** @description Non-whitespace text of at most 4096 UTF-16 code units. */
+            content: string;
             replyTo?: string | null;
+            /**
+             * @description Existing user IDs matching the .NET pattern
+             *     ^[^\p{Cc}\/\\#?:;]{1,64}$. Agent mentions have additional validation.
+             */
             mentions?: string[] | null;
-        };
-        CreateMessage: {
-            conversation: components["schemas"]["ChatConversation"];
-            /** @example Text/Emoji/File/Image/Voice/... */
-            messageType: string;
-            content: {
-                text?: string | null;
-                /** Format: binary */
-                binary?: string | null;
-            };
-            replyTo?: string | null;
-            mentions?: string[] | null;
+            metadata?: components["schemas"]["MessageMetadata"];
         };
         MessageBody: {
-            conversation: components["schemas"]["ChatConversation"];
-            messageId: string;
-            /** @example Join/Leave/Text/Emoji/File/Image/Voice/... */
-            messageType: string;
-            /** @example Inline/Reference/External/... */
-            messageBodyType: string;
-            content: {
-                text?: string | null;
-                /** Format: binary */
-                binary?: string | null;
-            };
+            content: components["schemas"]["MessageContent"];
             replyTo?: string | null;
+            /**
+             * @description Existing user IDs matching the .NET pattern
+             *     ^[^\p{Cc}\/\\#?:;]{1,64}$. Agent mentions have additional validation.
+             */
+            mentions?: string[] | null;
+            metadata?: components["schemas"]["MessageMetadata"];
+        };
+        /**
+         * @description replyTo must refer to a message in the same conversation. Inline
+         *     attachment items are externalized and returned as content.reference.
+         */
+        CreateMessageRequest: components["schemas"]["SingleConversation"] & components["schemas"]["MessageBody"];
+        CreateMessage: components["schemas"]["CreateMessageRequest"];
+        /**
+         * @description Requires the author to be a current room member with
+         *     room.publish_message permission. The exact current etag is required;
+         *     stale values and * are rejected. Content replaces the whole body.
+         *     Omitted mentions, replyTo, and metadata are preserved; null clears
+         *     them, and supplied values replace them. References may only reuse a
+         *     storage type and URI already present in the original message. On
+         *     success MessageUpdated contains the complete message and new etag.
+         */
+        EditMessageRequest: components["schemas"]["SingleMessage"] & components["schemas"]["MessageBody"] & {
+            etag: string;
+        };
+        /**
+         * @description Replaces the caller's complete reaction set. An empty array clears it.
+         *     Requires room.publish_reactions and sends MessageReactionUpdated.
+         */
+        ReactToMessageOptions: components["schemas"]["SingleMessage"] & {
+            reactions: string[];
+        };
+        /**
+         * @description Requires room membership and room.history permission. The type and
+         *     reference must match the same item in the current persisted message.
+         *     Storage type comparison is case-insensitive; URI comparison is exact.
+         */
+        DereferenceRequest: components["schemas"]["SingleMessage"] & {
+            /** @enum {string} */
+            type: "Text" | "Binary";
+            reference: components["schemas"]["ContentItemReference"];
+        };
+        DereferenceResult: {
+            text?: string | null;
+            /** Format: byte */
+            binary?: string | null;
+            downloadUri?: string | null;
+        };
+        /**
+         * @description Append data to the item identified by itemId within this message
+         *     stream. When metadata is present it replaces the previous map. Live
+         *     attachment notifications do not confirm persistence; wait for a
+         *     MessageCheckPoint before dereferencing. Generated images have empty
+         *     data and may carry contentType, fileName, and size.
+         */
+        AgentMessageItem: {
+            itemId: number;
+            data: string;
+            metadata?: components["schemas"]["MessageMetadata"];
+            isAttachment?: boolean;
+            contentType?: string;
+            fileName?: string;
+            /** Format: int64 */
+            size?: number;
+        };
+        /** @description Identifies a successfully persisted message snapshot. */
+        MessageCheckPoint: components["schemas"]["SingleMessage"] & {
+            itemIndex?: number | null;
+            etag: string;
+        };
+        CloseMessage: {
+            code: string;
+            message: string;
+        };
+        /** @description Agent stream notification; body corresponds to operation. */
+        StreamNotification: {
+            /** @enum {string} */
+            operation: "MessageItem";
+            body: components["schemas"]["AgentMessageItem"];
+        } | {
+            /** @enum {string} */
+            operation: "MessageCheckPoint";
+            body: components["schemas"]["MessageCheckPoint"];
+        } | {
+            /** @enum {string} */
+            operation: "Close";
+            body: components["schemas"]["CloseMessage"];
         };
         /** @enum {string} */
         JoinRoomState: "OK" | "Pending" | "Failed";
@@ -339,10 +514,11 @@ export interface components {
             role: string;
         };
         /** @enum {string} */
-        RoomMemberOperationEnum: "Add" | "Delete" | "Update";
+        RoomMemberOperationEnum: "Add" | "Delete";
         RoomMemberOperation: {
+            roomId: string;
             operation: components["schemas"]["RoomMemberOperationEnum"];
-            member: components["schemas"]["RoomMember"];
+            userId: string;
         };
         /** @enum {string} */
         RoomMemberOperationType: "Add" | "Delete";
@@ -366,6 +542,9 @@ export type operations = Record<string, never>;
 
 // Flattened schema exports
 export type Schemas = components["schemas"];
+export type EmptyObject = Schemas["EmptyObject"];
+export type JsonObject = Schemas["JsonObject"];
+export type NullableJsonObject = Schemas["NullableJsonObject"];
 export type NotificationType = Schemas["NotificationType"];
 export type Notification = Schemas["Notification"];
 export type NewMessageNotificationBody = Schemas["NewMessageNotificationBody"];
@@ -374,6 +553,10 @@ export type NewRoomNotificationBody = Schemas["NewRoomNotificationBody"];
 export type NewRoomNotification = Schemas["NewRoomNotification"];
 export type UpdateMessageNotificationBody = Schemas["UpdateMessageNotificationBody"];
 export type UpdateMessageNotification = Schemas["UpdateMessageNotification"];
+export type MessageReactionUpdatedNotificationBody = Schemas["MessageReactionUpdatedNotificationBody"];
+export type MessageReactionUpdatedNotification = Schemas["MessageReactionUpdatedNotification"];
+export type UserStatusUpdatedNotificationBody = Schemas["UserStatusUpdatedNotificationBody"];
+export type UserStatusUpdatedNotification = Schemas["UserStatusUpdatedNotification"];
 export type AddContactNotificationBody = Schemas["AddContactNotificationBody"];
 export type AddContactNotification = Schemas["AddContactNotification"];
 export type MemberJoinedNotificationBody = Schemas["MemberJoinedNotificationBody"];
@@ -399,16 +582,40 @@ export type ContactOperation = Schemas["ContactOperation"];
 export type ContactRequestOperation = Schemas["ContactRequestOperation"];
 export type RoomInfo = Schemas["RoomInfo"];
 export type RoomInfoWithMembers = Schemas["RoomInfoWithMembers"];
+export type GetRoomOptions = Schemas["GetRoomOptions"];
+export type SingleRoom = Schemas["SingleRoom"];
+export type SingleUser = Schemas["SingleUser"];
+export type SingleConversation = Schemas["SingleConversation"];
+export type SingleMessage = Schemas["SingleMessage"];
+export type CreateRoomRequest = Schemas["CreateRoomRequest"];
+export type UpdateRoomPropertiesRequest = Schemas["UpdateRoomPropertiesRequest"];
+export type GetRoomMembersResponse = Schemas["GetRoomMembersResponse"];
+export type CreateConversationOptions = Schemas["CreateConversationOptions"];
 export type RoomMemberJoinEnum = Schemas["RoomMemberJoinEnum"];
 export type RoomMessagePermissionEnum = Schemas["RoomMessagePermissionEnum"];
 export type RoomReactPermissionEnum = Schemas["RoomReactPermissionEnum"];
 export type RoomPolicy = Schemas["RoomPolicy"];
 export type MessageRangeQuery = Schemas["MessageRangeQuery"];
+export type QueryMessageHistoryResponse = Schemas["QueryMessageHistoryResponse"];
 export type MessageInfo = Schemas["MessageInfo"];
+export type MessageMetadata = Schemas["MessageMetadata"];
+export type MessageContent = Schemas["MessageContent"];
 export type ContentItem = Schemas["ContentItem"];
+export type MessageContentItemContentOrReference = Schemas["MessageContentItemContentOrReference"];
+export type ContentItemReference = Schemas["ContentItemReference"];
+export type MessageContentItemMetadata = Schemas["MessageContentItemMetadata"];
 export type CreateTextMessage = Schemas["CreateTextMessage"];
-export type CreateMessage = Schemas["CreateMessage"];
 export type MessageBody = Schemas["MessageBody"];
+export type CreateMessageRequest = Schemas["CreateMessageRequest"];
+export type CreateMessage = Schemas["CreateMessage"];
+export type EditMessageRequest = Schemas["EditMessageRequest"];
+export type ReactToMessageOptions = Schemas["ReactToMessageOptions"];
+export type DereferenceRequest = Schemas["DereferenceRequest"];
+export type DereferenceResult = Schemas["DereferenceResult"];
+export type AgentMessageItem = Schemas["AgentMessageItem"];
+export type MessageCheckPoint = Schemas["MessageCheckPoint"];
+export type CloseMessage = Schemas["CloseMessage"];
+export type StreamNotification = Schemas["StreamNotification"];
 export type JoinRoomState = Schemas["JoinRoomState"];
 export type JoinRoomResult = Schemas["JoinRoomResult"];
 export type JoinRoomRequest = Schemas["JoinRoomRequest"];

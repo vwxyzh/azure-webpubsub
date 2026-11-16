@@ -1,4 +1,4 @@
-import type { MessageInfo, RoomInfo } from "./models.js";
+import type { MessageInfo, RoomInfo, UserStatus, ChatConversation } from "./models.js";
 import type { DecodedMessage } from "./messageCodec.js";
 
 /**
@@ -49,8 +49,27 @@ export interface OnStoppedArgs {
 export interface OnMessageArgs {
   /** Room the message belongs to. */
   roomId: string;
+  /** Conversation identity, included on service notifications and sendMessage's local echo. */
+  conversation?: ChatConversation;
   /** The message. */
   message: ChatMessage;
+}
+
+/**
+ * Argument of `"message-updated"`, carrying the full service message snapshot.
+ * The snapshot is not reconstructed by a codec and preserves attachment references.
+ */
+export interface OnMessageUpdatedArgs extends OnMessageArgs {
+  /** The conversation containing the updated message. */
+  conversation: ChatConversation;
+}
+
+/** Argument of the `"user-status-updated"` event for a subscribed user. */
+export interface OnUserStatusUpdatedArgs {
+  /** Id of the user whose status changed. */
+  userId: string;
+  /** The user's complete current status, or null when cleared. */
+  status: UserStatus;
 }
 
 /** Argument of the `"room-joined"` event listener. Fired when the current client joins a room. */

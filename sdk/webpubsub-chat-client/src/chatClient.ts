@@ -21,13 +21,16 @@ import {
   MemberJoinedNotificationBody,
   MemberLeftNotificationBody,
   RoomLeftNotificationBody,
+  GetRoomMembersResponse,
 } from "./generatedTypes.js";
-import type { MessageInfo, RoomInfo, RoomDetail, SendMessageResult } from "./models.js";
+import type { MessageInfo, RoomInfo, RoomDetail, SendMessageResult, UserProperties, UserStatus, ChatConversation, RoomMember, MessageContent, DereferenceRequest, DereferenceResult, EditMessageRequest } from "./models.js";
 import type {
   ChatMessage,
   OnMemberJoinedArgs,
   OnMemberLeftArgs,
   OnMessageArgs,
+  OnMessageUpdatedArgs,
+  OnUserStatusUpdatedArgs,
   OnRoomJoinedArgs,
   OnRoomLeftArgs,
   OnStartedArgs,
@@ -37,9 +40,23 @@ import type {
   ListRoomMessagesOptions,
   OperationOptions,
   StartOptions,
+  GetCurrentUserPropertiesOptions,
+  SetCurrentUserPropertiesOptions,
+  GetUserPropertiesOptions,
+  GetCurrentUserStatusOptions,
+  SetCurrentUserStatusOptions,
+  GetUserStatusOptions,
+  SubscribeUserStatusOptions,
+  UnsubscribeUserStatusOptions,
   GetRoomDetailOptions,
+  GetRoomMembersOptions,
+  LeaveRoomOptions,
   CreateRoomOptions,
+  CreateConversationOptions,
   SendToRoomOptions,
+  SendMessageOptions,
+  DereferenceOptions,
+  EditMessageOptions,
   AddUserToRoomOptions,
   RemoveUserFromRoomOptions,
 } from "./options.js";
@@ -222,6 +239,14 @@ class ChatClient {
     try {
       const type = data.notificationType;
       switch (type) {
+        case "UserStatusUpdated": {
+          const event: OnUserStatusUpdatedArgs = {
+            userId: data.body.userId,
+            status: data.body.status,
+          };
+          this._emitter.emit("user-status-updated", event);
+          break;
+        }
         case "MessageCreated": {
           const body = data.body as NewMessageNotificationBody;
           if (!body.conversation.roomId) {
@@ -232,6 +257,7 @@ class ChatClient {
           }
           const event: OnMessageArgs = {
             roomId: body.conversation.roomId,
+            conversation: body.conversation,
             message: body.message as ChatMessage,
           };
           this._emitter.emit("message", event);
@@ -241,19 +267,18 @@ class ChatClient {
           const body = data.body as UpdateMessageNotificationBody;
           const roomId = body.conversation.roomId;
           const message = body.message as ChatMessage;
-          if (!this.useReceiver(message)) {
-            // TODO: Handle non-agent message update notifications.
+          if (!roomId) {
+            logger.warning("MessageUpdated notification is missing roomId.");
             break;
           }
-          if (!roomId || !message.streamId) {
-            logger.warning("Agent MessageUpdated notification is missing room or stream metadata.");
-            break;
-          }
+          const event: OnMessageUpdatedArgs = { roomId, conversation: body.conversation, message };
+          this._emitter.emit("message-updated", event);
+          if (!this.useReceiver(message) || !message.streamId) break;
 
           const receiver = this._receiverFactory.createReceiver(
             message,
             (decoded) => {
-              const event: OnMessageArgs = { roomId, message: decoded };
+              const event: OnMessageArgs = { roomId, conversation: body.conversation, message: decoded };
               this._emitter.emit("message", event);
             },
           );
@@ -287,12 +312,7 @@ class ChatClient {
         // self left a specific room
         case "RoomLeft": {
           const body = data.body as RoomLeftNotificationBody;
-          if (!this._rooms.has(body.roomId)) {
-            break;
-          }
-          const event: OnRoomLeftArgs = { roomId: body.roomId, title: body.title };
-          this._emitter.emit("room-left", event);
-          this._rooms.delete(body.roomId);
+          this.removeRoomFromCache(body.roomId, body.title);
           break;
         }
         case "MessageDeleted":
@@ -322,11 +342,7 @@ class ChatClient {
         abortSignal: options?.abortSignal,
       });
       logger.verbose(`invoke response for '${eventName}':`, rawResponse);
-      const data = rawResponse.data as any;
-      if (data && typeof data === "object" && typeof data.code === "string") {
-        throw new ChatError(`Invocation of event "${eventName}" failed: ${data.code}`, data.code);
-      }
-      return data as T;
+      return rawResponse.data as T;
     } catch (e) {
       if (e instanceof ChatError) throw e;
       if (e instanceof InvocationError && e.errorDetail?.name) {
@@ -449,6 +465,126 @@ class ChatClient {
     }
   }
 
+  /**
+   * Read the current user's properties from the service.
+   *
+   * @returns The complete properties object, or an empty object when none are set.
+   */
+  public async getCurrentUserProperties(options?: GetCurrentUserPropertiesOptions): Promise<UserProperties> {
+    this.ensureStarted();
+    return this.invokeWithReturnType<UserProperties>(
+      INVOCATION_NAME.GET_CURRENT_USER_PROPERTIES, {}, "json", options,
+    );
+  }
+
+  /**
+   * Replace the current user's complete properties object.
+   *
+   * Requires the `user.update_own_info` permission. This is not a merge;
+   * pass an empty object to clear all properties.
+   *
+   * @param properties - The replacement JSON object.
+   * @param options - Optional cancellation token.
+   */
+  public async setCurrentUserProperties(
+    properties: UserProperties,
+    options?: SetCurrentUserPropertiesOptions,
+  ): Promise<void> {
+    this.ensureStarted();
+    await this.invokeWithReturnType<void>(
+      INVOCATION_NAME.SET_CURRENT_USER_PROPERTIES, properties, "json", options,
+    );
+  }
+
+  /**
+   * Read another user's properties from the service.
+   *
+   * No special user permission is required.
+   *
+   * @param userId - The user whose properties to read.
+   * @param options - Optional cancellation token.
+   * @returns The complete properties object, or an empty object when none are set.
+   */
+  public async getUserProperties(userId: string, options?: GetUserPropertiesOptions): Promise<UserProperties> {
+    this.ensureStarted();
+    return this.invokeWithReturnType<UserProperties>(
+      INVOCATION_NAME.GET_USER_PROPERTIES, { userId }, "json", options,
+    );
+  }
+
+  /**
+   * Read the current user's status from the service.
+   *
+   * @returns The complete status object, or null when no status is set.
+   */
+  public async getCurrentUserStatus(options?: GetCurrentUserStatusOptions): Promise<UserStatus> {
+    this.ensureStarted();
+    return this.invokeWithReturnType<UserStatus>(
+      INVOCATION_NAME.GET_CURRENT_USER_STATUS, {}, "json", options,
+    );
+  }
+
+  /**
+   * Replace the current user's complete status object.
+   *
+   * Requires `user.update_own_info`. Null clears the status; an empty object
+   * is a valid status. The updating connection receives no status notification.
+   *
+   * @param status - The replacement JSON object, or null to clear it.
+   * @param options - Optional cancellation token.
+   */
+  public async setCurrentUserStatus(status: UserStatus, options?: SetCurrentUserStatusOptions): Promise<void> {
+    this.ensureStarted();
+    await this.invokeWithReturnType<void>(
+      INVOCATION_NAME.SET_CURRENT_USER_STATUS, status, "json", options,
+    );
+  }
+
+  /**
+   * Read another user's status from the service. No special user permission is required.
+   *
+   * @param userId - The user whose status to read.
+   * @param options - Optional cancellation token.
+   * @returns The complete status object, or null when no status is set.
+   */
+  public async getUserStatus(userId: string, options?: GetUserStatusOptions): Promise<UserStatus> {
+    this.ensureStarted();
+    return this.invokeWithReturnType<UserStatus>(
+      INVOCATION_NAME.GET_USER_STATUS, { userId }, "json", options,
+    );
+  }
+
+  /**
+   * Subscribe this connection to a user's status updates.
+   *
+   * The user must exist. Listen for `"user-status-updated"` separately.
+   * Subscriptions are connection-scoped; subscribe again after stop/start.
+   *
+   * @param userId - The user whose status to subscribe to.
+   * @param options - Optional cancellation token.
+   */
+  public async subscribeUserStatus(userId: string, options?: SubscribeUserStatusOptions): Promise<void> {
+    this.ensureStarted();
+    await this.invokeWithReturnType<void>(
+      INVOCATION_NAME.SUBSCRIBE_USER_STATUS, { userId }, "json", options,
+    );
+  }
+
+  /**
+   * Remove this connection's subscription to a user's status updates.
+   *
+   * This operation is idempotent and does not remove local event listeners.
+   *
+   * @param userId - The user whose status to unsubscribe from.
+   * @param options - Optional cancellation token.
+   */
+  public async unsubscribeUserStatus(userId: string, options?: UnsubscribeUserStatusOptions): Promise<void> {
+    this.ensureStarted();
+    await this.invokeWithReturnType<void>(
+      INVOCATION_NAME.UNSUBSCRIBE_USER_STATUS, { userId }, "json", options,
+    );
+  }
+
   private async sendToConversation(
     conversationId: string,
     message: string,
@@ -522,6 +658,110 @@ class ChatClient {
     return await this.sendToConversation(conversationId, message, options);
   }
 
+  /**
+   * Send text, base64 binary, or ordered items to a default or explicit conversation.
+   *
+   * The service validates content, permissions, mentions, references and reply
+   * targets. Inline attachment items are externalized in persisted messages.
+   * The sender's local message event reflects the submitted content, not the
+   * persisted attachment references; use history to read the stored message.
+   *
+   * @param conversation - Conversation ID, room/topic IDs, or room ID for the default topic.
+   * @param content - Exactly one of text, binary, or a non-empty items array.
+   * @param options - Optional mentions, replyTo, metadata and cancellation token.
+   * @returns The service-assigned message ID.
+   */
+  public async sendMessage(
+    conversation: ChatConversation,
+    content: MessageContent,
+    options?: SendMessageOptions,
+  ): Promise<SendMessageResult> {
+    this.ensureStarted();
+    const properties = {
+      ...(options?.mentions !== undefined ? { mentions: options.mentions } : {}),
+      ...(options?.replyTo !== undefined ? { replyTo: options.replyTo } : {}),
+      ...(options?.metadata !== undefined ? { metadata: options.metadata } : {}),
+    };
+    const response = await this.invokeWithReturnType<SendMessageResponse>(
+      INVOCATION_NAME.SEND_MESSAGE, { conversation, content, ...properties }, "json", options,
+    );
+    if (!response || typeof response.id !== "string" || response.id.length === 0) {
+      throw new ChatError("SendMessage returned an invalid message ID.", ERRORS.InvalidServerResponse);
+    }
+    const roomId = conversation.roomId
+      || /^c\.([^.]+)\.[^.]+$/.exec(conversation.conversationId ?? "")?.[1];
+    if (!roomId) {
+      logger.warning("SendMessage succeeded without a resolvable room ID; skipping local sender echo.");
+      return { messageId: response.id };
+    }
+    const event: OnMessageArgs = {
+      roomId,
+      conversation: { ...conversation, roomId },
+      message: { messageId: response.id, createdBy: this.userId, content, ...properties },
+    };
+    this._emitter.emit("message", event);
+    return { messageId: response.id };
+  }
+
+  /**
+   * Load referenced content from an item in a persisted message.
+   *
+   * Requires current room membership and `room.history` permission. Copy the
+   * item's type and content.reference without parsing or rewriting its URI.
+   * The service checks that both match the same item in the current message.
+   * For Agent streaming, wait for a checkpoint before loading the stored item.
+   *
+   * @param request - The conversation, message ID, item type and storage reference.
+   * @param options - Optional cancellation token.
+   * @returns Text, base64 binary, or a provider download URI.
+   */
+  public async dereference(
+    request: DereferenceRequest,
+    options?: DereferenceOptions,
+  ): Promise<DereferenceResult> {
+    this.ensureStarted();
+    return this.invokeWithReturnType<DereferenceResult>(
+      INVOCATION_NAME.DEREFERENCE,
+      {
+        conversation: request.conversation,
+        messageId: request.messageId,
+        type: request.type,
+        reference: request.reference,
+      },
+      "json",
+      options,
+    );
+  }
+
+  /**
+   * Edit a message authored by the current user using its exact current etag.
+   *
+   * Requires current room membership and `room.publish_message`. Content is
+   * replaced completely; omitted mentions, replyTo and metadata are preserved.
+   * The service sends `"message-updated"` to the room, including this connection.
+   * No local echo is synthesized; use the notification's new etag for later edits.
+   *
+   * @param request - Message identity, etag, replacement content and optional field updates.
+   * @param options - Optional cancellation token.
+   */
+  public async editMessage(request: EditMessageRequest, options?: EditMessageOptions): Promise<void> {
+    this.ensureStarted();
+    await this.invokeWithReturnType<void>(
+      INVOCATION_NAME.EDIT_MESSAGE,
+      {
+        conversation: request.conversation,
+        messageId: request.messageId,
+        etag: request.etag,
+        content: request.content,
+        ...(request.mentions !== undefined ? { mentions: request.mentions } : {}),
+        ...(request.replyTo !== undefined ? { replyTo: request.replyTo } : {}),
+        ...(request.metadata !== undefined ? { metadata: request.metadata } : {}),
+      },
+      "json",
+      options,
+    );
+  }
+
   // Internal: fetch a room's full wire shape (including its conversation id)
   // to populate the local cache. Public callers go through getRoomDetail().
   private async fetchRoomDetail(roomId: string, options?: GetRoomDetailOptions): Promise<WireRoomInfoWithMembers> {
@@ -544,6 +784,23 @@ class ChatClient {
   public async getRoomDetail(roomId: string, options?: GetRoomDetailOptions): Promise<RoomDetail> {
     this.ensureStarted();
     return this.fetchRoomDetail(roomId, options);
+  }
+
+  /**
+   * Fetch the room's current members and their roles from the service.
+   *
+   * Unlike room detail's member ID list, each entry includes its assigned role.
+   *
+   * @param roomId - The room whose members to query.
+   * @param options - Optional cancellation token.
+   * @returns The member list, including service-defined and custom role names.
+   */
+  public async getRoomMembers(roomId: string, options?: GetRoomMembersOptions): Promise<RoomMember[]> {
+    this.ensureStarted();
+    const response = await this.invokeWithReturnType<GetRoomMembersResponse>(
+      INVOCATION_NAME.GET_ROOM_MEMBERS, { roomId }, "json", options,
+    );
+    return response.members;
   }
 
   /**
@@ -579,6 +836,55 @@ class ChatClient {
     const event: OnRoomJoinedArgs = { room: roomInfo };
     this._emitter.emit("room-joined", event);
     return roomInfo;
+  }
+
+  /**
+   * Create a conversation in a room without changing its default conversation.
+   *
+   * Requires room membership and `room.create_conversation` permission.
+   * The service generates the topic and conversation IDs.
+   *
+   * @param roomId - The room in which to create the conversation.
+   * @param options - Optional title and cancellation token.
+   * @returns The created conversation's room, topic, and conversation IDs.
+   */
+  public async createConversation(
+    roomId: string,
+    options?: CreateConversationOptions,
+  ): Promise<ChatConversation> {
+    this.ensureStarted();
+    return this.invokeWithReturnType<ChatConversation>(
+      INVOCATION_NAME.CREATE_CONVERSATION,
+      { roomId, ...(options?.title !== undefined ? { title: options.title } : {}) },
+      "json",
+      options,
+    );
+  }
+
+  /**
+   * Leave a room as the current user using the dedicated leave operation.
+   *
+   * On success the room is removed from the local cache. A cached room emits
+   * `"room-left"` once, whether the service notification arrives before or
+   * after the invocation response.
+   *
+   * @param roomId - The room to leave.
+   * @param options - Optional cancellation token.
+   */
+  public async leaveRoom(roomId: string, options?: LeaveRoomOptions): Promise<void> {
+    this.ensureStarted();
+    await this.invokeWithReturnType<void>(
+      INVOCATION_NAME.LEAVE_ROOM, { roomId }, "json", options,
+    );
+    this.removeRoomFromCache(roomId);
+  }
+
+  private removeRoomFromCache(roomId: string, title?: string): void {
+    const roomInfo = this._rooms.get(roomId);
+    if (!roomInfo) return;
+    this._rooms.delete(roomId);
+    const event: OnRoomLeftArgs = { roomId, title: title ?? roomInfo.title };
+    this._emitter.emit("room-left", event);
   }
 
   private async manageRoomMember(
@@ -624,12 +930,7 @@ class ChatClient {
     // RoomLeft notification is not guaranteed for server-managed membership;
     // eagerly clean up local cache and emit RoomLeft so callers see consistent state immediately.
     if (userId === this.userId) {
-      const roomInfo = this._rooms.get(roomId);
-      if (roomInfo) {
-        this._rooms.delete(roomId);
-        const event: OnRoomLeftArgs = { roomId, title: roomInfo.title };
-        this._emitter.emit("room-left", event);
-      }
+      this.removeRoomFromCache(roomId);
     }
   }
 
@@ -763,6 +1064,10 @@ class ChatClient {
   public on(event: "stopped", listener: (e: OnStoppedArgs) => void): void;
   /** Subscribe to the `message` event, fired when a message arrives in a joined room. */
   public on(event: "message", listener: (e: OnMessageArgs) => void): void;
+  /** Subscribe to complete service message updates, including edits and Agent stream announcements. */
+  public on(event: "message-updated", listener: (e: OnMessageUpdatedArgs) => void): void;
+  /** Subscribe to status notifications for users subscribed through `subscribeUserStatus()`. */
+  public on(event: "user-status-updated", listener: (e: OnUserStatusUpdatedArgs) => void): void;
   /** Subscribe to the `room-joined` event, fired when this client joins a room. */
   public on(event: "room-joined", listener: (e: OnRoomJoinedArgs) => void): void;
   /** Subscribe to the `room-left` event, fired when this client leaves a room. */
@@ -781,6 +1086,10 @@ class ChatClient {
   public off(event: "stopped", listener: (e: OnStoppedArgs) => void): void;
   /** Remove a `message` listener previously registered with `on()`. */
   public off(event: "message", listener: (e: OnMessageArgs) => void): void;
+  /** Remove a `message-updated` listener previously registered with `on()`. */
+  public off(event: "message-updated", listener: (e: OnMessageUpdatedArgs) => void): void;
+  /** Remove a local status listener; this does not cancel the service subscription. */
+  public off(event: "user-status-updated", listener: (e: OnUserStatusUpdatedArgs) => void): void;
   /** Remove a `room-joined` listener previously registered with `on()`. */
   public off(event: "room-joined", listener: (e: OnRoomJoinedArgs) => void): void;
   /** Remove a `room-left` listener previously registered with `on()`. */

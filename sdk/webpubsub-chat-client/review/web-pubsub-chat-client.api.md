@@ -38,13 +38,24 @@ export class ChatClient {
     addCodec(codec: MessageCodec): void;
     addUserToRoom(roomId: string, userId: string, options?: AddUserToRoomOptions): Promise<void>;
     clearCodec(): void;
+    createConversation(roomId: string, options?: CreateConversationOptions): Promise<ChatConversation>;
     createRoom(title: string, members: string[], options?: CreateRoomOptions): Promise<RoomDetail>;
+    dereference(request: DereferenceRequest, options?: DereferenceOptions): Promise<DereferenceResult>;
+    editMessage(request: EditMessageRequest, options?: EditMessageOptions): Promise<void>;
+    getCurrentUserProperties(options?: GetCurrentUserPropertiesOptions): Promise<UserProperties>;
+    getCurrentUserStatus(options?: GetCurrentUserStatusOptions): Promise<UserStatus>;
     getRoomDetail(roomId: string, options?: GetRoomDetailOptions): Promise<RoomDetail>;
+    getRoomMembers(roomId: string, options?: GetRoomMembersOptions): Promise<RoomMember[]>;
+    getUserProperties(userId: string, options?: GetUserPropertiesOptions): Promise<UserProperties>;
+    getUserStatus(userId: string, options?: GetUserStatusOptions): Promise<UserStatus>;
     hasJoinedRoom(roomId: string): boolean;
+    leaveRoom(roomId: string, options?: LeaveRoomOptions): Promise<void>;
     listRoomMessages(roomId: string, options?: ListRoomMessagesOptions): PagedAsyncIterableIterator<ChatMessage>;
     off(event: "started", listener: (e: OnStartedArgs) => void): void;
     off(event: "stopped", listener: (e: OnStoppedArgs) => void): void;
     off(event: "message", listener: (e: OnMessageArgs) => void): void;
+    off(event: "message-updated", listener: (e: OnMessageUpdatedArgs) => void): void;
+    off(event: "user-status-updated", listener: (e: OnUserStatusUpdatedArgs) => void): void;
     off(event: "room-joined", listener: (e: OnRoomJoinedArgs) => void): void;
     off(event: "room-left", listener: (e: OnRoomLeftArgs) => void): void;
     off(event: "member-joined", listener: (e: OnMemberJoinedArgs) => void): void;
@@ -52,17 +63,24 @@ export class ChatClient {
     on(event: "started", listener: (e: OnStartedArgs) => void): void;
     on(event: "stopped", listener: (e: OnStoppedArgs) => void): void;
     on(event: "message", listener: (e: OnMessageArgs) => void): void;
+    on(event: "message-updated", listener: (e: OnMessageUpdatedArgs) => void): void;
+    on(event: "user-status-updated", listener: (e: OnUserStatusUpdatedArgs) => void): void;
     on(event: "room-joined", listener: (e: OnRoomJoinedArgs) => void): void;
     on(event: "room-left", listener: (e: OnRoomLeftArgs) => void): void;
     on(event: "member-joined", listener: (e: OnMemberJoinedArgs) => void): void;
     on(event: "member-left", listener: (e: OnMemberLeftArgs) => void): void;
     removeUserFromRoom(roomId: string, userId: string, options?: RemoveUserFromRoomOptions): Promise<void>;
     get rooms(): RoomInfo[];
+    sendMessage(conversation: ChatConversation, content: MessageContent, options?: SendMessageOptions): Promise<SendMessageResult>;
     sendToRoom(roomId: string, message: string, options?: SendToRoomOptions): Promise<SendMessageResult>;
+    setCurrentUserProperties(properties: UserProperties, options?: SetCurrentUserPropertiesOptions): Promise<void>;
+    setCurrentUserStatus(status: UserStatus, options?: SetCurrentUserStatusOptions): Promise<void>;
     static start(clientAccessUrl: string, options?: StartOptions): Promise<ChatClient>;
     static start(credential: WebPubSubClientCredential, options?: StartOptions): Promise<ChatClient>;
     start(options?: StartOptions): Promise<void>;
     stop(): Promise<void>;
+    subscribeUserStatus(userId: string, options?: SubscribeUserStatusOptions): Promise<void>;
+    unsubscribeUserStatus(userId: string, options?: UnsubscribeUserStatusOptions): Promise<void>;
     get userId(): string;
 }
 
@@ -70,6 +88,13 @@ export class ChatClient {
 export interface ChatClientSnapshot {
     rooms: RoomInfo[];
     userId: string;
+}
+
+// @public
+export interface ChatConversation {
+    conversationId?: string | null;
+    roomId?: string | null;
+    topicId?: string | null;
 }
 
 // @public
@@ -81,6 +106,17 @@ export class ChatError extends Error {
 // @public
 export interface ChatMessage extends MessageInfo {
     decodedMessage?: DecodedMessage;
+}
+
+// @public
+export interface ContentItemReference {
+    storageType: string;
+    uri: string;
+}
+
+// @public
+export interface CreateConversationOptions extends OperationOptions {
+    title?: string | null;
 }
 
 // @public
@@ -97,8 +133,62 @@ export interface DecodedMessage {
 }
 
 // @public
+export interface DereferenceOptions extends OperationOptions {
+}
+
+// @public
+export interface DereferenceRequest {
+    conversation: ChatConversation;
+    messageId: string;
+    reference: ContentItemReference;
+    type: "Text" | "Binary";
+}
+
+// @public
+export interface DereferenceResult {
+    binary?: string | null;
+    downloadUri?: string | null;
+    text?: string | null;
+}
+
+// @public
+export interface EditMessageOptions extends OperationOptions {
+}
+
+// @public
+export interface EditMessageRequest {
+    content: MessageContent;
+    conversation: ChatConversation;
+    etag: string;
+    mentions?: string[] | null;
+    messageId: string;
+    metadata?: Record<string, string> | null;
+    replyTo?: string | null;
+}
+
+// @public
+export interface GetCurrentUserPropertiesOptions extends OperationOptions {
+}
+
+// @public
+export interface GetCurrentUserStatusOptions extends OperationOptions {
+}
+
+// @public
 export interface GetRoomDetailOptions extends OperationOptions {
     withMembers?: boolean;
+}
+
+// @public
+export interface GetRoomMembersOptions extends OperationOptions {
+}
+
+// @public
+export interface GetUserPropertiesOptions extends OperationOptions {
+}
+
+// @public
+export interface GetUserStatusOptions extends OperationOptions {
 }
 
 // @public
@@ -110,6 +200,10 @@ export const KnownChatErrorCode: {
     readonly UnknownRoom: "UnknownRoom";
     readonly InvalidServerResponse: "InvalidServerResponse";
 };
+
+// @public
+export interface LeaveRoomOptions extends OperationOptions {
+}
 
 // @public
 export interface ListRoomMessagesOptions extends OperationOptions {
@@ -127,12 +221,16 @@ export interface MessageCodec {
 }
 
 // @public
+export interface MessageContent {
+    binary?: string | null;
+    items?: MessageContentItem[] | null;
+    text?: string | null;
+}
+
+// @public
 export interface MessageContentItem {
     // (undocumented)
-    content?: {
-        text?: string | null;
-        binary?: string | null;
-    };
+    content?: MessageContentItemContentOrReference;
     // (undocumented)
     isAttachment?: boolean;
     // (undocumented)
@@ -142,9 +240,19 @@ export interface MessageContentItem {
 }
 
 // @public
+export interface MessageContentItemContentOrReference {
+    binary?: string | null;
+    reference?: ContentItemReference | null;
+    text?: string | null;
+}
+
+// @public
 export interface MessageContentItemMetadata {
+    contentType?: string | null;
     // (undocumented)
     custom?: Record<string, string> | null;
+    fileName?: string | null;
+    size?: number | null;
 }
 
 // @public
@@ -170,16 +278,12 @@ export interface MessageDecoderInput {
 // @public
 export interface MessageInfo {
     bodyType?: string;
-    content: {
-        text?: string | null;
-        binary?: string | null;
-        items?: MessageContentItem[] | null;
-    };
+    content: MessageContent;
     createdAt?: string;
     createdBy?: string;
     etag?: string | null;
     mentions?: string[] | null;
-    messageBodyType: string;
+    messageBodyType?: string;
     messageId: string;
     metadata?: Record<string, string> | null;
     replyTo?: string | null;
@@ -202,8 +306,14 @@ export interface OnMemberLeftArgs {
 
 // @public
 export interface OnMessageArgs {
+    conversation?: ChatConversation;
     message: ChatMessage;
     roomId: string;
+}
+
+// @public
+export interface OnMessageUpdatedArgs extends OnMessageArgs {
+    conversation: ChatConversation;
 }
 
 // @public
@@ -228,6 +338,12 @@ export interface OnStoppedArgs {
 }
 
 // @public
+export interface OnUserStatusUpdatedArgs {
+    status: UserStatus;
+    userId: string;
+}
+
+// @public
 export interface OperationOptions {
     abortSignal?: AbortSignalLike;
 }
@@ -243,9 +359,20 @@ export interface RoomDetail extends RoomInfo {
 
 // @public
 export interface RoomInfo {
-    properties?: Record<string, never> | null;
+    properties?: Record<string, unknown> | null;
     roomId: string;
     title: string;
+}
+
+// @public
+export interface RoomMember {
+    role: string;
+    userId: string;
+}
+
+// @public
+export interface SendMessageOptions extends SendToRoomOptions {
+    metadata?: Record<string, string> | null;
 }
 
 // @public
@@ -260,7 +387,23 @@ export interface SendToRoomOptions extends OperationOptions {
 }
 
 // @public
+export interface SetCurrentUserPropertiesOptions extends OperationOptions {
+}
+
+// @public
+export interface SetCurrentUserStatusOptions extends OperationOptions {
+}
+
+// @public
 export interface StartOptions extends OperationOptions {
+}
+
+// @public
+export interface SubscribeUserStatusOptions extends OperationOptions {
+}
+
+// @public
+export interface UnsubscribeUserStatusOptions extends OperationOptions {
 }
 
 // @public
@@ -268,6 +411,12 @@ export interface UserProfile {
     roomIds?: string[];
     userId: string;
 }
+
+// @public
+export type UserProperties = Record<string, unknown>;
+
+// @public
+export type UserStatus = Record<string, unknown> | null;
 
 // (No @packageDocumentation comment for this package)
 

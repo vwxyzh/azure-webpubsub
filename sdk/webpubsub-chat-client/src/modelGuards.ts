@@ -15,7 +15,7 @@
  * It has no runtime effect (type-only).
  */
 import type { Schemas } from "./generatedTypes.js";
-import type { MessageInfo, RoomInfo, RoomDetail, UserProfile } from "./models.js";
+import type { MessageInfo, RoomInfo, RoomDetail, UserProfile, UserProperties, UserStatus, ChatConversation, RoomMember, MessageContent, DereferenceRequest, DereferenceResult, EditMessageRequest } from "./models.js";
 
 type Assert<T extends true> = T;
 /** `true` when wire type `W` structurally satisfies (is assignable to) the curated model `M`. */
@@ -25,3 +25,11 @@ type _GuardMessageInfo = Assert<WireSatisfies<MessageInfo, Schemas["MessageInfo"
 type _GuardRoomInfo = Assert<WireSatisfies<RoomInfo, Schemas["RoomInfo"]>>;
 type _GuardRoomDetail = Assert<WireSatisfies<RoomDetail, Schemas["RoomInfoWithMembers"]>>;
 type _GuardUserProfile = Assert<WireSatisfies<UserProfile, Schemas["UserProfile"]>>;
+type _GuardUserProperties = Assert<WireSatisfies<UserProperties, Schemas["JsonObject"]>>;
+type _GuardUserStatus = Assert<WireSatisfies<UserStatus, Schemas["NullableJsonObject"]>>;
+type _GuardChatConversation = Assert<WireSatisfies<ChatConversation, Schemas["ChatConversation"]>>;
+type _GuardRoomMember = Assert<WireSatisfies<RoomMember, Schemas["RoomMember"]>>;
+type _GuardMessageContent = Assert<WireSatisfies<MessageContent, Schemas["MessageContent"]>>;
+type _GuardDereferenceRequest = Assert<WireSatisfies<DereferenceRequest, Schemas["DereferenceRequest"]>>;
+type _GuardDereferenceResult = Assert<WireSatisfies<DereferenceResult, Schemas["DereferenceResult"]>>;
+type _GuardEditMessageRequest = Assert<WireSatisfies<EditMessageRequest, Schemas["EditMessageRequest"]>>;

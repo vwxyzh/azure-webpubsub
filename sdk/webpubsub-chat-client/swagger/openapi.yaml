@@ -2,15 +2,101 @@ openapi: 3.0.0
 info:
   title: Web PubSub Chat API
   version: 1.0.0
-  description: API for Web PubSub Chat SDK
+  description: |
+    Web PubSub chat invocation and notification payloads. Invocations use
+    the chat. prefix and are not HTTP operations.
+
+x-chat-invocations:
+  login:
+    parameters: { $ref: '#/components/schemas/EmptyObject' }
+    response: { $ref: '#/components/schemas/UserProfile' }
+  getCurrentUserProperties:
+    parameters: { $ref: '#/components/schemas/EmptyObject' }
+    response: { $ref: '#/components/schemas/JsonObject' }
+  setCurrentUserProperties:
+    parameters: { $ref: '#/components/schemas/JsonObject' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  getUserProperties:
+    parameters: { $ref: '#/components/schemas/SingleUser' }
+    response: { $ref: '#/components/schemas/JsonObject' }
+  getCurrentUserStatus:
+    parameters: { $ref: '#/components/schemas/EmptyObject' }
+    response: { $ref: '#/components/schemas/NullableJsonObject' }
+  setCurrentUserStatus:
+    parameters: { $ref: '#/components/schemas/NullableJsonObject' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  getUserStatus:
+    parameters: { $ref: '#/components/schemas/SingleUser' }
+    response: { $ref: '#/components/schemas/NullableJsonObject' }
+  subscribeUserStatus:
+    parameters: { $ref: '#/components/schemas/SingleUser' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  unsubscribeUserStatus:
+    parameters: { $ref: '#/components/schemas/SingleUser' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  getRoom:
+    parameters: { $ref: '#/components/schemas/GetRoomOptions' }
+    response: { $ref: '#/components/schemas/RoomInfo' }
+  updateRoomProperties:
+    parameters: { $ref: '#/components/schemas/UpdateRoomPropertiesRequest' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  createRoom:
+    parameters: { $ref: '#/components/schemas/CreateRoomRequest' }
+    response: { $ref: '#/components/schemas/RoomInfo' }
+  getRoomMembers:
+    parameters: { $ref: '#/components/schemas/SingleRoom' }
+    response: { $ref: '#/components/schemas/GetRoomMembersResponse' }
+  leaveRoom:
+    parameters: { $ref: '#/components/schemas/SingleRoom' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  manageRoomMember:
+    parameters: { $ref: '#/components/schemas/ManageRoomMemberRequest' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  createConversation:
+    parameters: { $ref: '#/components/schemas/CreateConversationOptions' }
+    response: { $ref: '#/components/schemas/ChatConversation' }
+  queryMessageHistory:
+    parameters: { $ref: '#/components/schemas/MessageRangeQuery' }
+    response: { $ref: '#/components/schemas/QueryMessageHistoryResponse' }
+  sendTextMessage:
+    parameters: { $ref: '#/components/schemas/CreateTextMessage' }
+    response: { $ref: '#/components/schemas/SendMessageResponse' }
+  sendMessage:
+    parameters: { $ref: '#/components/schemas/CreateMessageRequest' }
+    response: { $ref: '#/components/schemas/SendMessageResponse' }
+  editMessage:
+    parameters: { $ref: '#/components/schemas/EditMessageRequest' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  reactToMessage:
+    parameters: { $ref: '#/components/schemas/ReactToMessageOptions' }
+    response: { $ref: '#/components/schemas/EmptyObject' }
+  dereference:
+    parameters: { $ref: '#/components/schemas/DereferenceRequest' }
+    response: { $ref: '#/components/schemas/DereferenceResult' }
+
+paths: {}
 
 components:
   schemas:
+    EmptyObject:
+      type: object
+      additionalProperties: false
+
+    JsonObject:
+      type: object
+      additionalProperties: true
+
+    NullableJsonObject:
+      type: object
+      nullable: true
+      additionalProperties: true
+
     NotificationType:
       type: string
       enum:
         - MessageCreated
         - MessageUpdated
+        - MessageReactionUpdated
         - MessageDeleted
         - RoomJoined
         - RoomLeft
@@ -18,36 +104,65 @@ components:
         - RoomMemberJoined
         - RoomMemberLeft
         - AddContact
+        - UserStatusUpdated
     
     Notification:
-      type: object
-      properties:
-        notificationType:
-          $ref: '#/components/schemas/NotificationType'
-        body:
-          oneOf:
-            - $ref: '#/components/schemas/NewMessageNotificationBody'
-            - $ref: '#/components/schemas/NewRoomNotificationBody'
-            - $ref: '#/components/schemas/UpdateMessageNotificationBody'
-            - $ref: '#/components/schemas/AddContactNotificationBody'
-            - $ref: '#/components/schemas/MemberJoinedNotificationBody'
-            - $ref: '#/components/schemas/MemberLeftNotificationBody'
-            - $ref: '#/components/schemas/RoomLeftNotificationBody'
-          discriminator:
-            propertyName: notificationType
-            mapping:
-              MessageCreated: '#/components/schemas/NewMessageNotificationBody'
-              MessageUpdated: '#/components/schemas/UpdateMessageNotificationBody'
-              MessageDeleted: '#/components/schemas/MessageDeletedNotificationBody'
-              RoomJoined: '#/components/schemas/NewRoomNotificationBody'
-              RoomLeft: '#/components/schemas/RoomLeftNotificationBody'
-              RoomClosed: '#/components/schemas/RoomClosedNotificationBody'
-              RoomMemberJoined: '#/components/schemas/MemberJoinedNotificationBody'
-              RoomMemberLeft: '#/components/schemas/MemberLeftNotificationBody'
-              AddContact: '#/components/schemas/AddContactNotificationBody'
-      required:
-        - notificationType
-        - body
+      oneOf:
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [MessageCreated] }
+            body: { $ref: '#/components/schemas/NewMessageNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [MessageUpdated] }
+            body: { $ref: '#/components/schemas/UpdateMessageNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [MessageReactionUpdated] }
+            body: { $ref: '#/components/schemas/MessageReactionUpdatedNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [RoomJoined] }
+            body: { $ref: '#/components/schemas/NewRoomNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [RoomLeft] }
+            body: { $ref: '#/components/schemas/RoomLeftNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [RoomMemberJoined] }
+            body: { $ref: '#/components/schemas/MemberJoinedNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [RoomMemberLeft] }
+            body: { $ref: '#/components/schemas/MemberLeftNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [UserStatusUpdated] }
+            body: { $ref: '#/components/schemas/UserStatusUpdatedNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [MessageDeleted] }
+            body: { $ref: '#/components/schemas/MessageDeletedNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [RoomClosed] }
+            body: { $ref: '#/components/schemas/RoomClosedNotificationBody' }
+          required: [notificationType, body]
+        - type: object
+          properties:
+            notificationType: { type: string, enum: [AddContact] }
+            body: { $ref: '#/components/schemas/AddContactNotificationBody' }
+          required: [notificationType, body]
     
     NewMessageNotificationBody:
       type: object
@@ -67,7 +182,9 @@ components:
           properties:
             notificationType:
               type: string
-              enum: [NewMessage]
+              enum: [MessageCreated]
+            body:
+              $ref: '#/components/schemas/NewMessageNotificationBody'
     NewRoomNotificationBody:
       type: object
       properties:
@@ -77,13 +194,10 @@ components:
           type: string
         defaultConversationId:
           type: string
-        properties:
-          type: object
-          nullable: true
-          description: null for now
       required:
         - roomId
         - title
+        - defaultConversationId
     
     NewRoomNotification:
       allOf:
@@ -92,12 +206,9 @@ components:
           properties:
             notificationType:
               type: string
-              enum: [NewRoom]
+              enum: [RoomJoined]
             body:
               $ref: '#/components/schemas/NewRoomNotificationBody'
-              required:
-                - roomId
-                - title
     
     UpdateMessageNotificationBody:
       type: object
@@ -117,9 +228,55 @@ components:
           properties:
             notificationType:
               type: string
-              enum: [UpdateMessage]
+              enum: [MessageUpdated]
             body:
               $ref: '#/components/schemas/UpdateMessageNotificationBody'
+
+    MessageReactionUpdatedNotificationBody:
+      type: object
+      properties:
+        conversation:
+          $ref: '#/components/schemas/ChatConversation'
+        messageId:
+          type: string
+        reactions:
+          type: array
+          items:
+            type: string
+        userId:
+          type: string
+      required: [conversation, messageId, reactions, userId]
+
+    MessageReactionUpdatedNotification:
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          properties:
+            notificationType:
+              type: string
+              enum: [MessageReactionUpdated]
+            body:
+              $ref: '#/components/schemas/MessageReactionUpdatedNotificationBody'
+
+    UserStatusUpdatedNotificationBody:
+      type: object
+      properties:
+        userId:
+          type: string
+        status:
+          $ref: '#/components/schemas/NullableJsonObject'
+      required: [userId, status]
+
+    UserStatusUpdatedNotification:
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          properties:
+            notificationType:
+              type: string
+              enum: [UserStatusUpdated]
+            body:
+              $ref: '#/components/schemas/UserStatusUpdatedNotificationBody'
     
     AddContactNotificationBody:
       type: object
@@ -149,10 +306,13 @@ components:
           type: string
         userId:
           type: string
+        defaultConversationId:
+          type: string
       required:
         - roomId
         - title
         - userId
+        - defaultConversationId
     
     MemberJoinedNotification:
       allOf:
@@ -161,7 +321,7 @@ components:
           properties:
             notificationType:
               type: string
-              enum: [MemberJoined]
+              enum: [RoomMemberJoined]
             body:
               $ref: '#/components/schemas/MemberJoinedNotificationBody'
 
@@ -174,10 +334,13 @@ components:
           type: string
         userId:
           type: string
+        defaultConversationId:
+          type: string
       required:
         - roomId
         - title
         - userId
+        - defaultConversationId
 
     MemberLeftNotification:
       allOf:
@@ -186,7 +349,7 @@ components:
           properties:
             notificationType:
               type: string
-              enum: [MemberLeft]
+              enum: [RoomMemberLeft]
             body:
               $ref: '#/components/schemas/MemberLeftNotificationBody'
 
@@ -197,9 +360,12 @@ components:
           type: string
         title:
           type: string
+        defaultConversationId:
+          type: string
       required:
         - roomId
         - title
+        - defaultConversationId
 
     RoomLeftNotification:
       allOf:
@@ -273,11 +439,14 @@ components:
           type: array
           items:
             type: string
-          description: Array of conversation IDs the user is in
-          example: ["id1", "id2", "id3"]
+          description: Legacy optional conversation IDs; not part of the current login contract.
+        properties:
+          $ref: '#/components/schemas/JsonObject'
+        status:
+          $ref: '#/components/schemas/JsonObject'
       required:
         - userId
-        - rooms
+        - roomIds
     
     ListUserConversationRequest:
       type: object
@@ -307,6 +476,11 @@ components:
     
     ChatConversation:
       type: object
+      description: |
+        Identify a conversation by conversationId, by roomId and topicId, or
+        by roomId alone for the default topic. If both forms are supplied they
+        must agree. Responses include all three fields; conversationId has the
+        form c.{roomId}.{topicId}.
       properties:
         roomId:
           type: string
@@ -314,7 +488,6 @@ components:
         topicId:
           type: string
           nullable: true
-          description: null for now
         conversationId:
           type: string
           nullable: true
@@ -409,7 +582,13 @@ components:
         properties:
           type: object
           nullable: true
-          description: null for now
+          additionalProperties: true
+          description: Room properties, omitted when not set.
+        members:
+          type: array
+          items:
+            type: string
+          description: User IDs, included when members are requested.
       required:
         - roomId
         - title
@@ -427,6 +606,109 @@ components:
               description: List of user id
           required:
             - members
+
+    GetRoomOptions:
+      type: object
+      properties:
+        id:
+          type: string
+        withMembers:
+          type: boolean
+      required: [id]
+
+    SingleRoom:
+      type: object
+      properties:
+        roomId:
+          type: string
+      required: [roomId]
+
+    SingleUser:
+      type: object
+      properties:
+        userId:
+          type: string
+      required: [userId]
+
+    SingleConversation:
+      type: object
+      properties:
+        conversation:
+          $ref: '#/components/schemas/ChatConversation'
+      required: [conversation]
+
+    SingleMessage:
+      type: object
+      properties:
+        conversation:
+          $ref: '#/components/schemas/ChatConversation'
+        messageId:
+          type: string
+      required: [conversation, messageId]
+
+    CreateRoomRequest:
+      type: object
+      description: The caller is always added to members and duplicates are removed.
+      properties:
+        roomId:
+          type: string
+        title:
+          type: string
+          description: Optional title, at most 256 UTF-16 code units.
+        members:
+          type: array
+          items:
+            type: string
+        properties:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: |
+            Initial room properties; null or omission means no properties.
+            The serialized JSON must fit in 64 KiB of UTF-16.
+
+    UpdateRoomPropertiesRequest:
+      type: object
+      description: |
+        Requires room membership and room.update_properties permission.
+        An omitted or null title leaves it unchanged. An omitted properties
+        value leaves it unchanged; null clears it. An object shallow-merges
+        top-level fields, including null values. Both the supplied object and
+        the resulting JSON must fit in 64 KiB of UTF-16.
+      properties:
+        roomId:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{1,64}$'
+        title:
+          type: string
+          nullable: true
+          description: Replacement title, at most 256 UTF-16 code units; an empty string is allowed.
+        properties:
+          type: object
+          nullable: true
+          additionalProperties: true
+      required: [roomId]
+
+    GetRoomMembersResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoomMember'
+      required: [members]
+
+    CreateConversationOptions:
+      type: object
+      description: Requires room membership and room.create_conversation permission.
+      properties:
+        roomId:
+          type: string
+        title:
+          type: string
+          nullable: true
+          description: Optional title, at most 256 characters.
+      required: [roomId]
     
     RoomMemberJoinEnum:
       type: string
@@ -477,10 +759,27 @@ components:
           description: MessageId
         maxCount:
           type: integer
-          default: 100
+          minimum: 1
+          maximum: 100
           nullable: true
+          description: Defaults to 100 when omitted or null.
       required:
         - conversation
+
+    QueryMessageHistoryResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageInfo'
+        nextQuery:
+          anyOf:
+            - $ref: '#/components/schemas/MessageRangeQuery'
+            - type: object
+              nullable: true
+              enum: [null]
+      required: [messages, nextQuery]
     
     MessageInfo:
       type: object
@@ -493,32 +792,10 @@ components:
         createdAt:
           type: string
           format: date-time
-        bodyType:
-          type: string
-          example: Join/Leave/Text/Emoji/File/Image/Voice/...
-        messageBodyType:
-          type: string
-          example: Inline/Reference/External/...
         content:
-          type: object
-          properties:
-            text:
-              type: string
-              nullable: true
-            binary:
-              type: string
-              format: binary
-              nullable: true
-            items:
-              type: array
-              nullable: true
-              items:
-                $ref: '#/components/schemas/ContentItem'
+          $ref: '#/components/schemas/MessageContent'
         metadata:
-          type: object
-          nullable: true
-          additionalProperties:
-            type: string
+          $ref: '#/components/schemas/MessageMetadata'
         streamId:
           type: string
           nullable: true
@@ -533,123 +810,282 @@ components:
           nullable: true
           items:
             type: string
-      required:
-        - messageId
-        - sender
-        - sentAt
-        - messageType
-        - messageBodyType
+      required: [messageId, createdBy, createdAt, content]
+
+    MessageMetadata:
+      type: object
+      nullable: true
+      maxProperties: 16
+      description: At most 16 entries; keys are at most 32 characters and values at most 64 characters.
+      additionalProperties:
+        type: string
+
+    MessageContent:
+      type: object
+      description: |
+        For sends and edits, exactly one of text, binary, or a non-empty items
+        array is required. After attachments are externalized, the stored body
+        is limited to 65536 bytes. Each inline attachment is limited to 983025
+        bytes. Text sizes use UTF-8 bytes and binary sizes use decoded bytes.
+      properties:
+        text:
+          type: string
+          nullable: true
+        binary:
+          type: string
+          format: byte
+          nullable: true
+        items:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ContentItem'
+
     ContentItem:
       type: object
       properties:
         type:
           type: string
-        content:
-          type: object
-          properties:
-            text:
-              type: string
-              nullable: true
-            binary:
-              type: string
-              format: binary
-              nullable: true
-        metadata:
-          type: object
-          nullable: true
-          properties:
-            custom:
-              type: object
-              nullable: true
-              additionalProperties:
-                type: string
+          enum: [Text, Binary]
         isAttachment:
           type: boolean
-      required:
-        - content
+        content:
+          $ref: '#/components/schemas/MessageContentItemContentOrReference'
+        metadata:
+          $ref: '#/components/schemas/MessageContentItemMetadata'
+      required: [type, isAttachment, content]
+
+    MessageContentItemContentOrReference:
+      type: object
+      properties:
+        text:
+          type: string
+          nullable: true
+        binary:
+          type: string
+          format: byte
+          nullable: true
+        reference:
+          anyOf:
+            - $ref: '#/components/schemas/ContentItemReference'
+            - type: object
+              nullable: true
+              enum: [null]
+
+    ContentItemReference:
+      type: object
+      description: Opaque storage location; the containing item declares its Text or Binary type.
+      properties:
+        storageType:
+          type: string
+        uri:
+          type: string
+      required: [storageType, uri]
+
+    MessageContentItemMetadata:
+      type: object
+      nullable: true
+      properties:
+        contentType:
+          type: string
+          nullable: true
+        fileName:
+          type: string
+          nullable: true
+        size:
+          type: integer
+          format: int64
+          nullable: true
+        custom:
+          $ref: '#/components/schemas/MessageMetadata'
     
     CreateTextMessage:
       type: object
       properties:
         conversation:
           $ref: '#/components/schemas/ChatConversation'
-        message:
-          type: string
-        replyTo:
-          type: string
-          nullable: true
-        mentions:
-          type: array
-          nullable: true
-          items:
-            type: string
-      required:
-        - conversation
-        - message
-    
-    CreateMessage:
-      type: object
-      properties:
-        conversation:
-          $ref: '#/components/schemas/ChatConversation'
-        messageType:
-          type: string
-          example: Text/Emoji/File/Image/Voice/...
         content:
-          type: object
-          properties:
-            text:
-              type: string
-              nullable: true
-            binary:
-              type: string
-              format: binary
-              nullable: true
+          type: string
+          description: Non-whitespace text of at most 4096 UTF-16 code units.
         replyTo:
           type: string
           nullable: true
         mentions:
           type: array
           nullable: true
+          maxItems: 10
+          description: |
+            Existing user IDs matching the .NET pattern
+            ^[^\p{Cc}\/\\#?:;]{1,64}$. Agent mentions have additional validation.
           items:
             type: string
-      required:
-        - conversation
-        - messageType
-        - content
+        metadata:
+          $ref: '#/components/schemas/MessageMetadata'
+      required: [conversation, content]
     
     MessageBody:
       type: object
       properties:
-        conversation:
-          $ref: '#/components/schemas/ChatConversation'
-        messageId:
-          type: string
-        messageType:
-          type: string
-          example: Join/Leave/Text/Emoji/File/Image/Voice/...
-        messageBodyType:
-          type: string
-          example: Inline/Reference/External/...
         content:
-          type: object
-          properties:
-            text:
-              type: string
-              nullable: true
-            binary:
-              type: string
-              format: binary
-              nullable: true
+          $ref: '#/components/schemas/MessageContent'
         replyTo:
           type: string
           nullable: true
-      required:
-        - conversation
-        - messageId
-        - messageType
-        - messageBodyType
-        - content
+        mentions:
+          type: array
+          nullable: true
+          maxItems: 10
+          description: |
+            Existing user IDs matching the .NET pattern
+            ^[^\p{Cc}\/\\#?:;]{1,64}$. Agent mentions have additional validation.
+          items:
+            type: string
+        metadata:
+          $ref: '#/components/schemas/MessageMetadata'
+      required: [content]
+
+    CreateMessageRequest:
+      description: |
+        replyTo must refer to a message in the same conversation. Inline
+        attachment items are externalized and returned as content.reference.
+      allOf:
+        - $ref: '#/components/schemas/SingleConversation'
+        - $ref: '#/components/schemas/MessageBody'
+
+    CreateMessage:
+      allOf:
+        - $ref: '#/components/schemas/CreateMessageRequest'
+
+    EditMessageRequest:
+      description: |
+        Requires the author to be a current room member with
+        room.publish_message permission. The exact current etag is required;
+        stale values and * are rejected. Content replaces the whole body.
+        Omitted mentions, replyTo, and metadata are preserved; null clears
+        them, and supplied values replace them. References may only reuse a
+        storage type and URI already present in the original message. On
+        success MessageUpdated contains the complete message and new etag.
+      allOf:
+        - $ref: '#/components/schemas/SingleMessage'
+        - $ref: '#/components/schemas/MessageBody'
+        - type: object
+          properties:
+            etag:
+              type: string
+          required: [etag]
+
+    ReactToMessageOptions:
+      description: |
+        Replaces the caller's complete reaction set. An empty array clears it.
+        Requires room.publish_reactions and sends MessageReactionUpdated.
+      allOf:
+        - $ref: '#/components/schemas/SingleMessage'
+        - type: object
+          properties:
+            reactions:
+              type: array
+              maxItems: 16
+              items:
+                type: string
+          required: [reactions]
+
+    DereferenceRequest:
+      description: |
+        Requires room membership and room.history permission. The type and
+        reference must match the same item in the current persisted message.
+        Storage type comparison is case-insensitive; URI comparison is exact.
+      allOf:
+        - $ref: '#/components/schemas/SingleMessage'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [Text, Binary]
+            reference:
+              $ref: '#/components/schemas/ContentItemReference'
+          required: [type, reference]
+
+    DereferenceResult:
+      type: object
+      properties:
+        text:
+          type: string
+          nullable: true
+        binary:
+          type: string
+          format: byte
+          nullable: true
+        downloadUri:
+          type: string
+          nullable: true
+
+    AgentMessageItem:
+      type: object
+      description: |
+        Append data to the item identified by itemId within this message
+        stream. When metadata is present it replaces the previous map. Live
+        attachment notifications do not confirm persistence; wait for a
+        MessageCheckPoint before dereferencing. Generated images have empty
+        data and may carry contentType, fileName, and size.
+      properties:
+        itemId:
+          type: integer
+          minimum: 0
+        data:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/MessageMetadata'
+        isAttachment:
+          type: boolean
+        contentType:
+          type: string
+        fileName:
+          type: string
+        size:
+          type: integer
+          format: int64
+      required: [itemId, data]
+
+    MessageCheckPoint:
+      description: Identifies a successfully persisted message snapshot.
+      allOf:
+        - $ref: '#/components/schemas/SingleMessage'
+        - type: object
+          properties:
+            itemIndex:
+              type: integer
+              nullable: true
+            etag:
+              type: string
+          required: [etag]
+
+    CloseMessage:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required: [code, message]
+
+    StreamNotification:
+      description: Agent stream notification; body corresponds to operation.
+      oneOf:
+        - type: object
+          properties:
+            operation: { type: string, enum: [MessageItem] }
+            body: { $ref: '#/components/schemas/AgentMessageItem' }
+          required: [operation, body]
+        - type: object
+          properties:
+            operation: { type: string, enum: [MessageCheckPoint] }
+            body: { $ref: '#/components/schemas/MessageCheckPoint' }
+          required: [operation, body]
+        - type: object
+          properties:
+            operation: { type: string, enum: [Close] }
+            body: { $ref: '#/components/schemas/CloseMessage' }
+          required: [operation, body]
     
     JoinRoomState:
       type: string
@@ -722,18 +1158,17 @@ components:
       enum:
         - Add
         - Delete
-        - Update
     
     RoomMemberOperation:
       type: object
       properties:
+        roomId:
+          type: string
         operation:
           $ref: '#/components/schemas/RoomMemberOperationEnum'
-        member:
-          $ref: '#/components/schemas/RoomMember'
-      required:
-        - operation
-        - member
+        userId:
+          type: string
+      required: [roomId, operation, userId]
 
     RoomMemberOperationType:
       type: string
